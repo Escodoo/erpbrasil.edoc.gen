@@ -131,32 +131,32 @@ def generate_odoo(
     :param file_filter: Regex to filter xsd files
     :return:
     """
-    dest_dir = os.path.abspath(dest_dir)
+    version = version.replace('.', '_')
     os.makedirs(dest_dir, exist_ok=True)
 
     prepare(service_name, version, dest_dir, force)
 
-    version = version.replace('.', '_')
-    dest_dir_path = os.path.join(dest_dir, 'l10n_br_%s_spec/models/%s' % service_name, version)
-    output_path = os.path.join(dest_dir_path, version)
-    schema_version_dir = schema_dir + '/%s/%s' % (service_name,
-            version.replace('.', '_'),)
+    output_dir = os.path.join(
+        dest_dir, 'l10n_br_%s_spec/models/%s' % (service_name, version)
+    )
 
     filenames = []
     if file_filter:
         for pattern in file_filter.strip('\'').split('|'):
-            filenames += [file for file in Path(schema_version_dir
-            ).rglob(pattern + '*.xsd')]
+            filenames += [file for file in Path(schema_dir + '/%s/%s' % (
+                service_name, version
+            )).rglob(pattern + '*.xsd')]
     else:
-        filenames = [f for f in Path(schema_version_dir).rglob('*.xsd')]
+        filenames = [file for file in Path(schema_dir + '/%s/%s' % (
+            service_name, version
+        )).rglob('*.xsd')]
+
 
     for filename in filenames:
-        module_name = str(filename).split('/')[-1].split('_v')[0]
-        if not any(re.search(pattern, module_name) for pattern in FILE_SKIP):
-            generate_file(service_name, version, output_path,
-                          module_name, filename, dest_dir, schema_version_dir)
+        module_name = str(filename).split('/')[-1].split('_%s' % version)[0]
+        generate_file(service_name, version, output_dir, module_name, filename)
 
-#    finish(output_dir)
+   # finish(output_dir)
 
 
 if __name__ == "__main__":
