@@ -4,9 +4,11 @@ from pathlib import Path
 import click
 import os
 import sys
+import re
 #from odoo import gends_run_gen_odoo
 #import generateDS
 
+FILE_SKIP = ['^tipos.*', '^xmldsig.*']
 
 def prepare(service_name, version, dest_dir, force):
     """ Create the module l10n_br_spec_<service_name> with the structure:
@@ -108,7 +110,7 @@ def finish(output_dir):
 @click.option('-n', '--service_name', help="Service Name")
 @click.option('-v', '--version', help="Version Name")
 @click.option('-s', '--schema_dir', help="Schema dir",
-              default='/tmp/generated/schema')
+              default='/tmp/generated/schemas')
 @click.option('-f', '--force', is_flag=True, help="force")
 @click.option('-d', '--dest_dir', required=False,
               default='/tmp/generated/odoo',
@@ -129,29 +131,30 @@ def generate_odoo(
     :param file_filter: Regex to filter xsd files
     :return:
     """
-    version = version.replace('.', '_')
+    dest_dir = os.path.abspath(dest_dir)
     os.makedirs(dest_dir, exist_ok=True)
 
     prepare(service_name, version, dest_dir, force)
 
-    output_dir = os.path.join(
-        dest_dir, 'l10n_br_%s_spec/models/%s' % (service_name, version)
-    )
+    version = version.replace('.', '_')
+    dest_dir_path = os.path.join(dest_dir, 'l10n_br_%s_spec/models/%s' % service_name, version)
+    output_path = os.path.join(dest_dir_path, version)
+    schema_version_dir = schema_dir + '/%s/%s' % (service_name,
+            version.replace('.', '_'),)
 
     filenames = []
     if file_filter:
         for pattern in file_filter.strip('\'').split('|'):
-            filenames += [file for file in Path(schema_dir + '/%s/%s' % (
-                service_name, version
-            )).rglob(pattern + '*.xsd')]
+            filenames += [file for file in Path(schema_version_dir
+            ).rglob(pattern + '*.xsd')]
     else:
-        filenames = [file for file in Path(schema_dir + '/%s/%s' % (
-            service_name, version
-        )).rglob('*.xsd')]
+        filenames = [f for f in Path(schema_version_dir).rglob('*.xsd')]
 
-#    for filename in filenames:
-#        module_name = str(filename).split('/')[-1].split('_%s' % version)[0]
-#        generate_file(service_name, version, output_dir, module_name, filename)
+    for filename in filenames:
+        module_name = str(filename).split('/')[-1].split('_v')[0]
+        if not any(re.search(pattern, module_name) for pattern in FILE_SKIP):
+            generate_file(service_name, version, output_path,
+                          module_name, filename, dest_dir, schema_version_dir)
 
 #    finish(output_dir)
 
